@@ -1,6 +1,16 @@
 # ESP32 Intex PureSpa SB-H20 WiFi Controller
 
-This project is a modified version of the original ESP8266 implementation:
+> This is an unofficial ESP32 fork of the original project.
+
+## Credits
+
+Original project by Jens B.:
+https://github.com/jnsbyr/esp8266-intexsbh20
+
+Based in part on DIYSCIP by Geoffroy Hubert:
+https://github.com/yorffoeg/diyscip
+
+This project is an ESP32-based modification of:
 https://github.com/jnsbyr/esp8266-intexsbh20
 
 The goal was to port the project to ESP32, make temperature control functional, simplify usage, and improve integration with Home Assistant.
@@ -108,27 +118,26 @@ Prebuilt firmware is available in the **Releases** section.
 
 ## Notes
 
-This project was created as a practical modification for personal use.
+This project started as a personal modification and evolved into a more complete ESP32-based solution.
 Behavior may differ slightly from the original implementation.
 
 Tested on SB-H20 model (short-term), stable so far.
 
 ---
 
-## Original project
-
-Author: Jens B.
-Repository: https://github.com/jnsbyr/esp8266-intexsbh20
-
 ## License
 
 This project is a derivative work based on:
 https://github.com/jnsbyr/esp8266-intexsbh20
 
-Parts of the code are based on DIYSCIP:
-https://github.com/yorffoeg/diyscip
+It includes code from multiple sources:
 
-This project is licensed under:
-Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
+- Original project by Jens B. (see repository for license details)
+- DIYSCIP by Geoffroy Hubert (licensed under CC BY-NC-SA 4.0)
 
-You may not use this project for commercial purposes.
+Therefore, this project contains components under different licenses.
+
+For non-commercial use, this repository follows the terms of:
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 (CC BY-NC-SA 4.0)
+
+Please refer to the original projects for full license details.
