@@ -16,6 +16,20 @@ The goal was to port the project to ESP32, make temperature control functional, 
 * web interface for device configuration
 * single universal firmware (no need to compile for different models)
 * improved value synchronization after device startup
+* topic change to Intex_PureSpa/...
+
+<img width="1539" height="728" alt="image" src="https://github.com/user-attachments/assets/e652155e-91c6-47a2-8710-2870890663e0" />
+
+<img width="1537" height="725" alt="image" src="https://github.com/user-attachments/assets/6a9c1ec8-b0d8-49be-bd6a-f02c3cef36de" />
+
+<img width="1542" height="722" alt="image" src="https://github.com/user-attachments/assets/6180a13d-32bf-4b11-adda-a120388165e3" />
+
+<img width="343" height="421" alt="image" src="https://github.com/user-attachments/assets/fa953c9c-9729-4b01-835d-9a815e349c5d" />
+
+<img width="805" height="732" alt="image" src="https://github.com/user-attachments/assets/567c9d63-2565-40b7-9cf1-c2910820581d" />
+
+<img width="809" height="716" alt="image" src="https://github.com/user-attachments/assets/03ba1a92-94e4-4997-bd71-4ac83995f1d1" />
+
 
 ---
 
