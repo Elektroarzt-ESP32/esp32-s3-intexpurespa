@@ -120,6 +120,13 @@ Tested on SB-H20 model (short-term), stable so far.
 Author: Jens B.
 Repository: https://github.com/jnsbyr/esp8266-intexsbh20
 
-License remains unchanged according to the original project (CC BY-NC-SA 4.0).
+License
+
+This project is based on:
+https://github.com/jnsbyr/esp8266-intexsbh20
+
+Please refer to the original project for licensing details.
+
+Parts of the code may be subject to different licenses (e.g. DIYSCIP).
 
 ---
