@@ -138,7 +138,13 @@ void WebConfig::ensureFallbackAP()
 {
   if (!apStarted)
   {
-    WiFi.softAP(CONFIG::DEFAULT_AP_NAME);
+    // ESP32-S3 / Arduino Core v5.x needs a short settling time after
+    // WiFi.mode() before softAP() reliably starts the access point.
+    delay(100);
+    bool ok = WiFi.softAP(CONFIG::DEFAULT_AP_NAME);
+    Serial.printf("softAP start: %s (IP: %s)\n",
+                  ok ? "OK" : "FAILED",
+                  WiFi.softAPIP().toString().c_str());
     apStarted = true;
   }
 }

@@ -71,7 +71,7 @@ static inline void wifiForceSleepWakeCompat()
 #define DEFAULT_CUSTOM_MODEL_NAME_VALUE "Intex_PureSpa"
 
 // #define FORCE_WIFI_SLEEP
-// #define SERIAL_DEBUG
+#define SERIAL_DEBUG
 
 /*****************************************************************************/
 
@@ -164,10 +164,10 @@ enum class LANG
 
 namespace PIN
 {
-  const uint8 CLOCK = 18;
-  const uint8 DATA  = 19;
-  const uint8 LATCH = 23;
-  const uint8 NTC   = 34;
+  const uint8 CLOCK = 6;
+  const uint8 DATA  = 7;
+  const uint8 LATCH = 8;
+  const uint8 NTC   = 4;
 }
 
 #ifdef SERIAL_DEBUG

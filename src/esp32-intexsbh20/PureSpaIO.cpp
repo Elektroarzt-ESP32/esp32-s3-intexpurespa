@@ -1130,6 +1130,7 @@ IRAM_ATTR void PureSpaIO::clockRisingISR(void* arg)
     if (isrState.receivedBits == FRAME::BITS)
     {
       state.frameCounter++;
+
       if (isrState.frameValue == FRAME_TYPE::CUE)
       {
       }

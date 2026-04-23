@@ -1,6 +1,6 @@
-# ESP32 Intex PureSpa SB-H20 WiFi Controller
+# ESP32-S3 Intex PureSpa SB-H20 WiFi Controller
 
-> This is an unofficial ESP32 fork of the original project.
+> This is an unofficial ESP32-S3 fork of the original project.
 
 ## Credits
 
@@ -10,16 +10,19 @@ https://github.com/jnsbyr/esp8266-intexsbh20
 Based in part on DIYSCIP by Geoffroy Hubert:
 https://github.com/yorffoeg/diyscip
 
-This project is an ESP32-based modification of:
-https://github.com/jnsbyr/esp8266-intexsbh20
+ESP32 port by Petr Kašpar (caspercze):
+https://github.com/caspercze
 
-The goal was to port the project to ESP32, make temperature control functional, simplify usage, and improve integration with Home Assistant.
+This project is an ESP32-S3-based modification of the ESP32 port by caspercze, which in
+turn is based on the original ESP8266 project by Jens B.
+
+The goal was to port the project to ESP32-S3, make temperature control functional.
 
 ---
 
 ## Main changes compared to the original version
 
-* ESP32 support instead of ESP8266 (due to higher performance requirements)
+* ESP32-S3 support (ported from ESP8266 via caspercze's ESP32 port)
 * improved communication stability
 * MQTT integration with Home Assistant autodiscovery support
 * added climate entity for temperature control in Home Assistant
@@ -27,6 +30,7 @@ The goal was to port the project to ESP32, make temperature control functional, 
 * single universal firmware (no need to compile for different models)
 * improved value synchronization after device startup
 * topic change to Intex_PureSpa/...
+* ADC calibration via `analogReadMilliVolts()` for improved ESP32 temp accuracy
 
 <img width="1539" height="728" alt="image" src="https://github.com/user-attachments/assets/e652155e-91c6-47a2-8710-2870890663e0" />
 
@@ -43,26 +47,22 @@ The goal was to port the project to ESP32, make temperature control functional, 
 
 ---
 
-## Wiring (ESP32)
+## Wiring (ESP32-S3)
 
-The wiring is based on the original project but adapted for ESP32.
+The wiring is based on the original project but adapted for ESP32-S3.
 
 ### Used pins
 
-* GPIO18 – CLOCK
-* GPIO19 – DATA
-* GPIO23 – LATCH
-* GPIO34 – NTC
+* GPIO6  – CLOCK
+* GPIO7  – DATA
+* GPIO8  – LATCH
+* GPIO4  – NTC
 
 ### Power supply
 
-* 5V / VIN depending on the ESP32 module used
+* 5V / VIN
 * the spa control panel appears to provide sufficient current reserve
-* recommended to replace the PTC fuse with at least 500 mA (originally ~200 mA)
-
-### Note
-
-Wiring may vary depending on the specific spa model and ESP32 board used.
+* PTC fuse with 1000 mA (originally ~200 mA)
 
 ---
 
@@ -88,14 +88,14 @@ The device uses MQTT autodiscovery, so entities are created automatically after 
 
 Prebuilt firmware is available in the **Releases** section.
 
-* download `.bin` file
-* upload to ESP32 (via OTA or esptool)
+* download `esp32-s3-intexsbh20.bin`
+* upload to ESP32-S3 (via OTA or esptool)
 
 ---
 
 ## Installation
 
-1. Upload the firmware (.bin) to ESP32
+1. Upload `esp32-s3-intexsbh20.bin` to ESP32-S3
 2. After boot, the device creates a WiFi AP (192.168.4.1)
 3. Open the web interface
 4. Configure WiFi, MQTT server, spa model and other settings
@@ -118,10 +118,12 @@ Prebuilt firmware is available in the **Releases** section.
 
 ## Notes
 
-This project started as a personal modification and evolved into a more complete ESP32-based solution.
+This project aimed at providing a ESP32-S3-based PCB solution.
 Behavior may differ slightly from the original implementation.
 
 Tested on SB-H20 model (short-term), stable so far.
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes per release.
 
 ---
 
@@ -134,6 +136,7 @@ It includes code from multiple sources:
 
 - Original project by Jens B. (see repository for license details)
 - DIYSCIP by Geoffroy Hubert (licensed under CC BY-NC-SA 4.0)
+- ESP32 port by Petr Kašpar (caspercze)
 
 Therefore, this project contains components under different licenses.
 

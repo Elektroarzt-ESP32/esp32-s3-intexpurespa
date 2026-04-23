@@ -29,10 +29,10 @@
  * ESP32 firmware; SB-H20 and SJB-HS panel models.
  * Target: ESP32 (Arduino-ESP32; GPIO numbers refer to the chip, not the silkscreen).
  * GPIO pins (see common.h, namespace PIN):
- *   18  CLOCK  — spa panel bus clock (digital input, interrupt on rising edge)
- *   19  DATA   — spa panel bus data line (input; open-drain when driving)
- *   23  LATCH  — spa panel bus latch / frame sync (digital input)
- *   34  NTC    — ADC1, on-board NTC thermistor for controller temperature
+ *   6  CLOCK  — spa panel bus clock (digital input, interrupt on rising edge)
+ *   7  DATA   — spa panel bus data line (input; open-drain when driving)
+ *   8  LATCH  — spa panel bus latch / frame sync (digital input)
+ *   4  NTC    — ADC1, on-board NTC thermistor for controller temperature
  */
 
 #include "common.h"
@@ -120,6 +120,8 @@ void setup()
 
   Serial.printf("%s MQTT WiFi Controller %s\n", pureSpaIO.getModelName(), CONFIG::WIFI_VERSION);
   Serial.printf("build with Arduino Core for ESP32 %s\n", ESP.getSdkVersion());
+  Serial.printf("PIN CLOCK=%d DATA=%d LATCH=%d NTC=%d\n", PIN::CLOCK, PIN::DATA, PIN::LATCH, PIN::NTC);
+  Serial.printf("Free heap: %u bytes\n", ESP.getFreeHeap());
 
   webConfig.begin();
 
@@ -128,7 +130,10 @@ void setup()
   {
     try
     {
-      WiFi.mode(WIFI_AP_STA);
+      // WiFi mode is already set to WIFI_AP_STA by webConfig.begin().
+      // Do NOT call WiFi.mode() again here — on ESP32-S3 / Arduino Core v5.x
+      // a second WiFi.mode() call resets the WiFi stack and destroys the
+      // already-running SoftAP.
       WiFi.begin(config.get(CONFIG_TAG::WIFI_SSID), config.get(CONFIG_TAG::WIFI_PASSPHRASE));
 
       bool retainAll = readConfigOrDefault(CONFIG_TAG::MQTT_RETAIN, "no") != "no";
@@ -272,7 +277,10 @@ void setup()
         "offline"
       );
 
-      thermometer.setup(22000, 3.30f, 320.f / 100.f);
+      // NTC circuit: +3V3 → TH1 (10kΩ NTC) → junction → R2 (22kΩ) → GND
+      // Junction connected DIRECTLY to IO4 (no voltage divider).
+      // adcScale = 1.0  →  V_adc = V_junction (no scaling needed)
+      thermometer.setup(22000, 3.30f, 1.0f);
       ready = true;
     }
     catch (const std::runtime_error& re)
@@ -350,6 +358,8 @@ void loop()
       {
         if (bootSpaOnlineSinceMs == 0)
         {
+          Serial.printf("[DBG %lus] Spa panel ONLINE! frames=%u dropped=%u\n",
+                        now / 1000, pureSpaIO.getTotalFrames(), pureSpaIO.getDroppedFrames());
           bootSpaOnlineSinceMs = now;
         }
       }

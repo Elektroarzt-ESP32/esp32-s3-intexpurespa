@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Arduino IDE build output
+src/**/build/
+
+# PlatformIO
+.pio/
+
+# platformio.ini (local toolchain config, not part of the Arduino sketch)
+platformio.ini

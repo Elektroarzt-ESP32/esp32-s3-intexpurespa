@@ -44,7 +44,13 @@ void NTCThermometer::setup(unsigned int refResistance, float refVoltage, float a
   this->refVoltage = refVoltage;
   analogReadResolution(12);
   analogSetPinAttenuation(PIN::NTC, ADC_11db);
-  this->adcScale = refVoltage/4095.0f;
+  // adcScale: accounts for an external voltage divider between the NTC circuit
+  // and the ADC pin. On ESP8266 D1 Mini the divider was 320k/100k (adcScale=3.2).
+  // On ESP32-S3 the ADC reads 0-3.3 V directly, so if the PCB still has the
+  // same divider, pass adcScale = (R_top + R_bot) / R_bot (e.g. 420.f/100.f).
+  // Without any external divider use adcScale = 1.0f.
+  // The factor scales the raw ADC reading back to represent the undivided voltage.
+  this->adcScale = (refVoltage * adcScale) / 4095.0f;
 
   for (unsigned int i = 0; i < HISTORY_DEPTH; ++i)
   {
@@ -63,7 +69,9 @@ float NTCThermometer::analogReadMultiple()
   unsigned int count = 0;
   for (unsigned int i=0; i<CONSECUTIVE_SAMPLES; i++)
   {
-    int sample = analogRead(PIN::NTC);
+    // analogReadMilliVolts() uses the factory ADC calibration stored in eFuse
+    // (Arduino-ESP32 v3+), reducing non-linearity from ±6% to ±1-2%.
+    int sample = analogReadMilliVolts(PIN::NTC);
     if (sample >= 0)
     {
       sum += sample;
@@ -76,7 +84,7 @@ float NTCThermometer::analogReadMultiple()
     count = 1;
   }
 
-  return (float)sum/count;
+  return (float)sum/count;  // returns millivolts
 }
 
 /**
@@ -87,7 +95,10 @@ float NTCThermometer::analogReadMultiple()
  */
 int NTCThermometer::getResistance()
 {
-  return round((refVoltage/(adcScale*analogReadMultiple()) - 1)*refResistance);
+  float vMv = analogReadMultiple();           // mV at ADC pin
+  if (vMv <= 0.0f) return (int)refResistance; // guard: avoid division by zero
+  float v = vMv / 1000.0f;                   // convert to V
+  return round((refVoltage / v - 1) * refResistance);
 }
 
 /**

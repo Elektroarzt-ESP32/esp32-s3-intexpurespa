@@ -145,7 +145,7 @@ void MQTTPublisher::publishWifiDiagnostics(unsigned long now)
   mqttClient.publish(MQTT_TOPIC::RSSI, String(buf), true, true);
 
 #ifdef SERIAL_DEBUG
-  publish("wifi/heap", ESP.getFreeHeap());
+  publish("wifi/heap", (unsigned int)ESP.getFreeHeap());
 #endif
 }
 
