@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# this file
+.gitignore
+
 # Arduino IDE build output
 src/**/build/
 
