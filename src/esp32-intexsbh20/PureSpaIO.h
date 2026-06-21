@@ -355,4 +355,19 @@ private:
   char errorBuffer[4];
 };
 
+// Debug stats written by setDesiredWaterTempCelsius, read by main loop for MQTT publish
+struct PureSpaDebugStats {
+  int      prevSetTemp   = -99;
+  int      direction     = 0;
+  bool     clickOk       = false;
+  int      lastCandidate = -99;
+  bool     blinkingEver  = false;
+  int      maxBlinkCnt   = 0;
+  uint32_t latestBlink   = 0xFFFFFFFF;
+  int      pollsDone     = 0;
+  bool     confirmed     = false;
+};
+extern PureSpaDebugStats g_dbgStats;
+extern bool g_dbgStatsReady;
+
 #endif /* PURE_SPA_IO_H */

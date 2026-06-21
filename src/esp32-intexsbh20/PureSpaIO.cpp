@@ -235,6 +235,9 @@ static int g_lastKnownSetTemp = PureSpaIO::UNDEF::INT;
 static int g_lastAcceptedDesiredFromIsrC = PureSpaIO::UNDEF::INT;
 static unsigned long g_lastTempUiActionTime = 0;
 
+PureSpaDebugStats g_dbgStats;
+bool g_dbgStatsReady = false;
+
 static constexpr unsigned int spaBusFramesForWallMs(unsigned long ms)
 {
   return (unsigned int)((ms * 34ULL) / 21ULL);
@@ -692,6 +695,13 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
         yield();
 
         int candidate = getDesiredWaterTempCelsius();
+        g_dbgStats.pollsDone = tries + 1;
+        g_dbgStats.lastCandidate = candidate;
+        if (isrState.isDisplayBlinking) g_dbgStats.blinkingEver = true;
+        if ((int)isrState.stableBlinkingWaterTempCount > g_dbgStats.maxBlinkCnt)
+          g_dbgStats.maxBlinkCnt = (int)isrState.stableBlinkingWaterTempCount;
+        g_dbgStats.latestBlink = isrState.latestBlinkingTemp;
+
         DEBUG_MSG("cSPC t=%d cand=%d prev=%d blink=%d stBlnk=%u latBlink=%08X stBlinkCnt=%u\n",
           tries, candidate, previousSetTemp,
           (int)isrState.isDisplayBlinking,
@@ -716,6 +726,11 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
 
     int newSetTemp = UNDEF::INT;
 
+    g_dbgStats = {};
+    g_dbgStats.prevSetTemp  = previousSetTemp;
+    g_dbgStats.direction    = direction;
+    g_dbgStatsReady         = false;
+
     DEBUG_MSG("sDWT step prev=%d dir=%d blink=%d stBlnk=%u latBlink=%08X actFrm=%u uiActFrm=%u\n",
       previousSetTemp, direction,
       (int)isrState.isDisplayBlinking,
@@ -725,6 +740,8 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
       g_lastTempUiActionFrame);
 
     bool clickOk = changeWaterTemp(direction);
+    g_dbgStats.clickOk    = clickOk;
+    g_dbgStats.latestBlink= isrState.latestBlinkingTemp;
     DEBUG_MSG("cWT click=%d blink=%d latBlink=%08X\n",
       clickOk,
       (int)isrState.isDisplayBlinking,
@@ -738,6 +755,9 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
       DEBUG_MSG("cWT retry click=%d\n", clickOk);
       confirmed = clickOk ? confirmSetpointChange(newSetTemp) : false;
     }
+
+    g_dbgStats.confirmed = confirmed;
+    g_dbgStatsReady = true;
 
     if (!confirmed)
     {

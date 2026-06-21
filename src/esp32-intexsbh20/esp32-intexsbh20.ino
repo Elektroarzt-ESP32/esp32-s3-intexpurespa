@@ -450,6 +450,23 @@ void loop()
           delay(300);
           yield();
 
+          // Publish debug stats after each execution attempt
+          if (g_dbgStatsReady)
+          {
+            char dbgBuf[128];
+            snprintf(dbgBuf, sizeof(dbgBuf),
+              "prev=%d dir=%d click=%d polls=%d cand=%d conf=%d blink=%d maxBlinkCnt=%d latBlink=%08X",
+              g_dbgStats.prevSetTemp, g_dbgStats.direction,
+              g_dbgStats.clickOk ? 1 : 0,
+              g_dbgStats.pollsDone, g_dbgStats.lastCandidate,
+              g_dbgStats.confirmed ? 1 : 0,
+              g_dbgStats.blinkingEver ? 1 : 0,
+              g_dbgStats.maxBlinkCnt,
+              (unsigned)g_dbgStats.latestBlink);
+            mqttClient.publish("Intex_PureSpa/debug/step", String(dbgBuf), false, true);
+            g_dbgStatsReady = false;
+          }
+
           int setTemp = pureSpaIO.getDesiredWaterTempCelsius();
           if (setTemp != PureSpaIO::UNDEF::INT)
           {
