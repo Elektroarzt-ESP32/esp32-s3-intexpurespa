@@ -107,6 +107,7 @@ static String readConfigOrDefault(const char* key, const char* fallback = "")
 void setup()
 {
   Serial.begin(74880);
+  Serial.setTxTimeoutMs(0);  // don't block if no USB CDC host connected
   delay(20);
 
   const esp_reset_reason_t rr = esp_reset_reason();

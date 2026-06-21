@@ -77,7 +77,7 @@ static inline void wifiForceSleepWakeCompat()
 
 namespace CONFIG
 {
-  const char WIFI_VERSION[] = "1.4.3-esp32-s3";
+  const char WIFI_VERSION[] = "1.4.4-debug";
 
   const unsigned long WIFI_MAX_DISCONNECT_DURATION = 900000;
 

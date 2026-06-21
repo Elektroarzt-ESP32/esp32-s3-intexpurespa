@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.4.4-debug] – 2026-06-21
+
+### Debug build — ISR blink-detection diagnostics
+
+Serial debug output (`SERIAL_DEBUG`) extended with per-poll ISR state snapshots
+in `setDesiredWaterTempCelsius` / `confirmSetpointChange`. Logs:
+- `isDisplayBlinking`, `stableDisplayBlankCount`, `latestBlinkingTemp`,
+  `stableBlinkingWaterTempCount` on every confirm poll
+- ISR state before each `changeWaterTemp` call
+- `requestSetTempDisplay` result with frame counter
+
+`Serial.setTxTimeoutMs(0)` added in `setup()` so USB CDC output is non-blocking
+even without an active host connection.
+
+**Do not use in production.** Verbose output (~40 lines per temperature step).
+
+---
+
 ## [1.4.3-esp32-s3] – 2026-06-21
 
 ### Fix: unreliable water temperature setting (`PureSpaIO.cpp`)

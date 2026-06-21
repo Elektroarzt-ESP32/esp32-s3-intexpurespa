@@ -692,6 +692,13 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
         yield();
 
         int candidate = getDesiredWaterTempCelsius();
+        DEBUG_MSG("cSPC t=%d cand=%d prev=%d blink=%d stBlnk=%u latBlink=%08X stBlinkCnt=%u\n",
+          tries, candidate, previousSetTemp,
+          (int)isrState.isDisplayBlinking,
+          isrState.stableDisplayBlankCount,
+          (unsigned)isrState.latestBlinkingTemp,
+          isrState.stableBlinkingWaterTempCount);
+
         if (candidate == UNDEF::INT)
         {
           continue;
@@ -709,11 +716,26 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
 
     int newSetTemp = UNDEF::INT;
 
+    DEBUG_MSG("sDWT step prev=%d dir=%d blink=%d stBlnk=%u latBlink=%08X actFrm=%u uiActFrm=%u\n",
+      previousSetTemp, direction,
+      (int)isrState.isDisplayBlinking,
+      isrState.stableDisplayBlankCount,
+      (unsigned)isrState.latestBlinkingTemp,
+      state.frameCounter,
+      g_lastTempUiActionFrame);
+
     bool clickOk = changeWaterTemp(direction);
+    DEBUG_MSG("cWT click=%d blink=%d latBlink=%08X\n",
+      clickOk,
+      (int)isrState.isDisplayBlinking,
+      (unsigned)isrState.latestBlinkingTemp);
+
     bool confirmed = clickOk ? confirmSetpointChange(newSetTemp) : false;
     if (!confirmed)
     {
+      DEBUG_MSG("retry cWT\n");
       clickOk = changeWaterTemp(direction);
+      DEBUG_MSG("cWT retry click=%d\n", clickOk);
       confirmed = clickOk ? confirmSetpointChange(newSetTemp) : false;
     }
 
@@ -1003,7 +1025,7 @@ bool PureSpaIO::requestSetTempDisplay()
 
   if (!success)
   {
-    DEBUG_MSG("request set temp display failed\n");
+    DEBUG_MSG("request set temp display failed blink=%d\n", (int)isrState.isDisplayBlinking);
     return false;
   }
 
@@ -1011,6 +1033,7 @@ bool PureSpaIO::requestSetTempDisplay()
   g_lastTempUiActionTime = lastTempUiActionTime;
   g_lastTempUiActionFrame = state.frameCounter;
   markCommandTime(g_lastGenericCommandMs);
+  DEBUG_MSG("rSTD ok frm=%u blink=%d\n", state.frameCounter, (int)isrState.isDisplayBlinking);
   delay(250);
   yield();
   return true;
