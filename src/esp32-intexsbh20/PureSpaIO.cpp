@@ -345,6 +345,18 @@ static bool shouldRejectBlinkAsSetpoint(uint32 blinkRaw, int prevDesiredC, int w
       {
         return true;
       }
+
+      // Reject if the value does not move in the direction of the last button press.
+      // Prevents the old setpoint from oscillating with the new one when the SB-H20
+      // display briefly re-shows the previous value during a transition.
+      if (g_lastTempUiActionDirection > 0 && b <= prevDesiredC)
+      {
+        return true;
+      }
+      if (g_lastTempUiActionDirection < 0 && b >= prevDesiredC)
+      {
+        return true;
+      }
     }
 
     return false;
