@@ -234,6 +234,7 @@ inline bool displayIsBlank(uint32 v)    { return (v & 0x00FFFFFFU) == (' ' << 16
 static int g_lastKnownSetTemp = PureSpaIO::UNDEF::INT;
 static int g_lastAcceptedDesiredFromIsrC = PureSpaIO::UNDEF::INT;
 static unsigned long g_lastTempUiActionTime = 0;
+static int g_lastTempUiActionDirection = 0; // +1 = up, -1 = down, 0 = unknown
 
 PureSpaDebugStats g_dbgStats;
 bool g_dbgStatsReady = false;
@@ -1136,6 +1137,7 @@ bool PureSpaIO::changeWaterTemp(int up)
       lastTempUiActionTime = millis();
       g_lastTempUiActionTime = lastTempUiActionTime;
       g_lastTempUiActionFrame = state.frameCounter;
+      g_lastTempUiActionDirection = (up > 0) ? 1 : -1;
       g_lastDesiredBusRawChangeFrame = state.frameCounter;
       markCommandTime(g_lastGenericCommandMs);
     }
@@ -1432,10 +1434,19 @@ inline void PureSpaIO::decodeDisplay()
                   const int prevDC  = (state.desiredTemp != UNDEF::UINT)
                     ? displayTempToCelsiusRaw(state.desiredTemp) : UNDEF::INT;
 
+                  // Only accept values that move in the direction of the last button press.
+                  // This prevents the old setpoint value (shown briefly on the SB-H20 display
+                  // while transitioning) from overwriting a newly accepted higher/lower value.
+                  const bool directionOk =
+                    (g_lastTempUiActionDirection > 0 && (prevDC == UNDEF::INT || stableC > prevDC))
+                    || (g_lastTempUiActionDirection < 0 && (prevDC == UNDEF::INT || stableC < prevDC))
+                    || (g_lastTempUiActionDirection == 0);
+
                   if (state.error == ERROR_NONE
                       && stableC != UNDEF::INT
                       && stableC >= WATER_TEMP::SET_MIN
                       && stableC <= WATER_TEMP::SET_MAX
+                      && directionOk
                       && !shouldRejectBlinkAsSetpoint(isrState.displayValue, prevDC, waterC,
                                                       state.frameCounter))
                   {

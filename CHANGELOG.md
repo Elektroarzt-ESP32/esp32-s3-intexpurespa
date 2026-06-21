@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.4.7-esp32-s3] – 2026-06-22
+
+### Fix: direction guard for stable setpoint detection (`PureSpaIO.cpp`)
+
+**Problem with 1.4.6:** The stable setpoint detection path introduced in 1.4.6
+ran for ANY temperature value that passed `shouldRejectBlinkAsSetpoint`. On the
+SB-H20, after a temp-up press, the display briefly shows the OLD setpoint (e.g.
+29°C) before updating to the new one (30°C). Both values passed the reject-test
+(1°C steps are always accepted), causing `state.desiredTemp` to oscillate
+between 29 and 30 — and the per-step confirmation poll to see the old value on
+half the polls, resulting in all steps after the first two failing.
+
+**Fix:** Added `g_lastTempUiActionDirection` (set in `changeWaterTemp` after
+buzzer ACK) and a `directionOk` guard in the stable detection path:
+- Up press (+1): only accept values strictly HIGHER than `prevDC`
+- Down press (-1): only accept values strictly LOWER than `prevDC`
+
+This prevents the old setpoint value from overwriting a just-accepted new one,
+making all steps in a multi-degree change confirm reliably.
+
+---
+
 ## [1.4.6-esp32-s3] – 2026-06-22
 
 ### Fix: stable setpoint detection for SB-H20 display protocol (`PureSpaIO.cpp`)
