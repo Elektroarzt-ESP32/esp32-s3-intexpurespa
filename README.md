@@ -26,11 +26,11 @@ The goal was to port the project to ESP32-S3, make temperature control functiona
 * improved communication stability
 * MQTT integration with Home Assistant autodiscovery support
 * added climate entity for temperature control in Home Assistant
-* web interface for device configuration
+* web interface for device configuration with captive portal
 * single universal firmware (no need to compile for different models)
 * improved value synchronization after device startup
 * topic change to Intex_PureSpa/...
-* ADC calibration via `analogReadMilliVolts()` for improved ESP32 temp accuracy
+* NTC temperature reading fixed for Arduino-ESP32 v5.x
 
 <img width="1539" height="728" alt="image" src="https://github.com/user-attachments/assets/e652155e-91c6-47a2-8710-2870890663e0" />
 
@@ -95,11 +95,24 @@ Prebuilt firmware is available in the **Releases** section.
 
 ## Installation
 
-1. Upload `esp32-s3-intexsbh20.bin` to ESP32-S3
-2. After boot, the device creates a WiFi AP (192.168.4.1)
-3. Open the web interface
+1. Upload `esp32-s3-intexsbh20-merged.bin` to ESP32-S3 (first-time / new board)
+   or `esp32-s3-intexsbh20.bin` via OTA for updates
+2. After boot, the device creates a WiFi AP named **Intex_PureSpa**
+3. Connect to the AP — the setup page opens automatically (captive portal)
 4. Configure WiFi, MQTT server, spa model and other settings
-5. The device will automatically appear in Home Assistant
+5. The device connects to your network and appears in Home Assistant automatically
+
+See [SETUP.md](SETUP.md) for a detailed step-by-step guide.
+
+### Arduino IDE board settings (for compiling from source)
+
+| Setting | Value |
+|---------|-------|
+| Board   | ESP32S3 Dev Module |
+| PSRAM   | Disabled |
+
+> Modules without PSRAM will log `E octal_psram: PSRAM chip is not connected` and may fail
+> to boot if compiled with PSRAM enabled. This project does not use PSRAM.
 
 ---
 
@@ -107,12 +120,12 @@ Prebuilt firmware is available in the **Releases** section.
 
 * spa power on/off
 * control of filtration, heating, bubbles, etc.
-* reading current water temperature
-* setting target temperature
-* MQTT communication
-* Home Assistant integration
-* OTA firmware updates via web interface
-* full web-based configuration
+* reading current and target water temperature
+* MQTT communication with Home Assistant autodiscovery
+* climate entity for temperature control in Home Assistant
+* captive portal — setup page opens automatically on first connect
+* OTA firmware updates via web interface or URL
+* full web-based configuration with credential reset
 
 ---
 

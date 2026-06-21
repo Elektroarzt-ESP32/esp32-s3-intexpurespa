@@ -30,7 +30,6 @@
 #include "NTCThermometer.h"
 #include "common.h"
 #include <math.h>
-#include <esp_adc_cal.h>
 
 
 /**
@@ -43,7 +42,11 @@ void NTCThermometer::setup(unsigned int refResistance, float refVoltage, float a
   this->refResistance = refResistance;
   this->refVoltage = refVoltage;
   analogReadResolution(12);
-  analogSetPinAttenuation(PIN::NTC, ADC_11db);
+  // Do NOT call analogSetPinAttenuation() here: on Arduino-ESP32 v5.x it
+  // drives the pin LOW (output mode) instead of configuring ADC attenuation,
+  // which causes analogRead() to return near-zero counts.
+  // analogRead() itself configures the pin as ADC input with the correct
+  // attenuation (ADC_ATTEN_DB_12, 0–3.3 V) on first call.
   // adcScale: accounts for an external voltage divider between the NTC circuit
   // and the ADC pin. On ESP8266 D1 Mini the divider was 320k/100k (adcScale=3.2).
   // On ESP32-S3 the ADC reads 0-3.3 V directly, so if the PCB still has the
@@ -59,32 +62,23 @@ void NTCThermometer::setup(unsigned int refResistance, float refVoltage, float a
 }
 
 /**
- * read analog input multiple times and return average [digits]
+ * read analog input multiple times and return average [millivolts]
  *
- * @return average digits
+ * Uses analogRead() (raw 0–4095) and converts using the known reference
+ * voltage. analogReadMilliVolts() returns 0 on Arduino-ESP32 v5.x when
+ * the internal eFuse calibration path fails silently.
+ *
+ * @return average millivolts
  */
 float NTCThermometer::analogReadMultiple()
 {
   long sum = 0;
-  unsigned int count = 0;
-  for (unsigned int i=0; i<CONSECUTIVE_SAMPLES; i++)
+  for (unsigned int i = 0; i < CONSECUTIVE_SAMPLES; i++)
   {
-    // analogReadMilliVolts() uses the factory ADC calibration stored in eFuse
-    // (Arduino-ESP32 v3+), reducing non-linearity from ±6% to ±1-2%.
-    int sample = analogReadMilliVolts(PIN::NTC);
-    if (sample >= 0)
-    {
-      sum += sample;
-      count++;
-    }
+    sum += analogRead(PIN::NTC);
   }
-
-  if (count == 0)
-  {
-    count = 1;
-  }
-
-  return (float)sum/count;  // returns millivolts
+  // Convert raw counts (0–4095) to millivolts using the ADC reference voltage.
+  return ((float)sum / CONSECUTIVE_SAMPLES) * (refVoltage * 1000.0f / 4095.0f);
 }
 
 /**

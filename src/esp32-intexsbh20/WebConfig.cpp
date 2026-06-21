@@ -96,11 +96,28 @@ void WebConfig::begin()
     return;
   }
 
+  // Set hostname before WiFi.mode() so it is used for both STA and AP.
+  // Without this the ESP32-S3 uses the default "esp32s3-XXXXXX" mDNS name.
+  WiFi.setHostname(CONFIG::DEFAULT_AP_NAME);
   WiFi.mode(WIFI_AP_STA);
 
   server.on("/", HTTP_GET, std::bind(&WebConfig::handleRoot, this));
   server.on("/scan", HTTP_GET, std::bind(&WebConfig::handleScan, this));
   server.on("/save", HTTP_POST, std::bind(&WebConfig::handleSave, this));
+  server.on("/reset-credentials", HTTP_POST, std::bind(&WebConfig::handleResetCredentials, this));
+
+  // Captive portal detection endpoints for iOS, Android, Windows and macOS.
+  // All redirect to the setup page so the browser opens it automatically.
+  auto cp = std::bind(&WebConfig::handleCaptivePortal, this);
+  server.on("/generate_204",        HTTP_GET, cp);  // Android / Chrome
+  server.on("/gen_204",             HTTP_GET, cp);  // Android (older)
+  server.on("/hotspot-detect.html", HTTP_GET, cp);  // Apple / macOS / iOS
+  server.on("/library/test/success.html", HTTP_GET, cp); // Apple (newer)
+  server.on("/connecttest.txt",     HTTP_GET, cp);  // Windows NCSI
+  server.on("/ncsi.txt",            HTTP_GET, cp);  // Windows NCSI
+  server.on("/success.txt",         HTTP_GET, cp);  // Firefox
+  server.on("/redirect",            HTTP_GET, cp);  // Generic
+
   server.on("/update", HTTP_POST,
             std::bind(&WebConfig::handleUpdateFinished, this),
             std::bind(&WebConfig::handleUpdateUpload, this));
@@ -117,6 +134,10 @@ void WebConfig::loop()
     return;
   }
 
+  if (apStarted)
+  {
+    dnsServer.processNextRequest();
+  }
   server.handleClient();
 
   if (WiFi.status() == WL_CONNECTED)
@@ -145,6 +166,13 @@ void WebConfig::ensureFallbackAP()
     Serial.printf("softAP start: %s (IP: %s)\n",
                   ok ? "OK" : "FAILED",
                   WiFi.softAPIP().toString().c_str());
+    if (ok)
+    {
+      // DNS server: redirect every hostname to the AP IP so the OS captive
+      // portal detection triggers and opens the browser automatically.
+      dnsServer.setTTL(300);
+      dnsServer.start(53, "*", WiFi.softAPIP());
+    }
     apStarted = true;
   }
 }
@@ -153,6 +181,7 @@ void WebConfig::stopFallbackAPIfConnected()
 {
   if (apStarted)
   {
+    dnsServer.stop();
     WiFi.softAPdisconnect(true);
     apStarted = false;
   }
@@ -193,7 +222,7 @@ void WebConfig::handleRoot()
 .card{background:var(--panel);border:1px solid rgba(148,163,184,.18);border-radius:20px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.22)}
 h1{margin:0 0 18px;font-size:24px;font-weight:700}.card h2{margin:0 0 12px;font-size:20px}.note,.msg,.scanstatus{color:var(--muted)}
 .badges{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.badge{background:#0b1733;border:1px solid #35508b;color:#fff;padding:6px 10px;border-radius:999px;font-size:13px}
-label{display:block;margin:14px 0 8px;color:#cbd5e1}input,select{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 14px;outline:none}input:focus,select:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(59,130,246,.15)}input[readonly]{opacity:.8}
+label{display:block;margin:14px 0 8px;color:#cbd5e1}input,select{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 14px;outline:none;font-size:1rem;line-height:1.4;height:46px;box-sizing:border-box}select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}input:focus,select:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(59,130,246,.15)}input[readonly]{opacity:.8}button.btn-danger{background:linear-gradient(180deg,#ef4444,#dc2626)}button.btn-danger:hover{filter:brightness(1.08)}
 button{appearance:none;border:0;border-radius:12px;background:linear-gradient(180deg,var(--accent2),var(--accent));color:#fff;padding:12px 18px;font-weight:700;cursor:pointer}button:hover{filter:brightness(1.06)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media (max-width: 700px){.row2{grid-template-columns:1fr}}.list{margin-top:16px;display:flex;flex-direction:column;gap:10px}.net{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;cursor:pointer}.net:hover{border-color:var(--accent2)}.ssid{font-weight:600;word-break:break-all}.meta{font-size:13px;color:var(--muted)}.footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:18px;flex-wrap:wrap}
 small{display:block;color:var(--muted);margin-top:6px}.sectionline{margin:18px 0;border:0;border-top:1px solid rgba(148,163,184,.18)}
@@ -271,7 +300,7 @@ small{display:block;color:var(--muted);margin-top:6px}.sectionline{margin:18px 0
   html += CONFIG_TAG::WIFI_OTA_URL;
   html += F(R"HTML(" value=")HTML");
   html += firmwareUrl;
-  html += F(R"HTML("><small>This keeps OTA updates from Home Assistant via URL working.</small><div class="footer"><button type="submit">Save &amp; Restart</button><span class="msg">Configuration is stored in flash memory. No LittleFS / config.json is needed.</span></div></form><hr class="sectionline"><h2>OTA Update</h2><form method="post" action="/update" enctype="multipart/form-data"><label for="updateFile">Upload firmware BIN</label><input id="updateFile" name="update" type="file" accept=".bin,application/octet-stream"><small>This updates directly from your browser. URL based OTA remains available too.</small><div class="footer"><button type="submit">Upload &amp; Flash</button></div></form></div></div></div><script>
+  html += F(R"HTML("><small>This keeps OTA updates from Home Assistant via URL working.</small><div class="footer"><button type="submit">Save &amp; Restart</button><span class="msg">Configuration is stored in flash memory. No LittleFS / config.json is needed.</span></div></form><form method="post" action="/reset-credentials" onsubmit="return confirm('Reset WiFi and MQTT credentials? The port and all other settings will be kept.')"><div class="footer"><button type="submit" class="btn-danger">Reset Credentials</button><span class="msg">Clears WiFi SSID/password and MQTT server/user/password. Port and other settings are kept.</span></div></form><hr class="sectionline"><h2>OTA Update</h2><form method="post" action="/update" enctype="multipart/form-data"><label for="updateFile">Upload firmware BIN</label><input id="updateFile" name="update" type="file" accept=".bin,application/octet-stream"><small>This updates directly from your browser. URL based OTA remains available too.</small><div class="footer"><button type="submit">Upload &amp; Flash</button></div></form></div></div></div><script>
 function scanWifi(){const status=document.getElementById('scanStatus');const list=document.getElementById('networks');status.textContent='Scanning networks...';list.innerHTML='';fetch('/scan').then(r=>r.json()).then(data=>{if(!Array.isArray(data)||!data.length){status.textContent='No networks found.';return;}status.textContent='Select a network from the list.';data.forEach(item=>{const el=document.createElement('div');el.className='net';const left=document.createElement('div');const ssid=document.createElement('div');ssid.className='ssid';ssid.textContent=item.ssid||'(hidden network)';const meta=document.createElement('div');meta.className='meta';meta.textContent='RSSI: '+item.rssi+' dBm • '+(item.secured?'secured':'open');left.appendChild(ssid);left.appendChild(meta);el.appendChild(left);el.onclick=function(){document.getElementById('wifiSSID').value=item.ssid||'';};list.appendChild(el);});}).catch(()=>{status.textContent='Scan failed.';});}
 function onMqttModeChange(){const mode=document.getElementById('mqttDiscoveryMode').value;const prefix=document.getElementById('mqttDiscoveryPrefix');if(mode==='HA'){prefix.value='homeassistant';prefix.readOnly=true;}else{prefix.readOnly=false;}}
 window.addEventListener('load', onMqttModeChange);
@@ -365,6 +394,35 @@ void WebConfig::handleSave()
   server.send(200, "text/html; charset=utf-8",
               buildRestartPage("Saved", "Configuration was stored. The device will restart now..."));
 
+  delay(1000);
+  ESP.restart();
+}
+
+void WebConfig::handleCaptivePortal()
+{
+  // Redirect to the setup page. Using an absolute URL with the AP IP ensures
+  // the browser leaves the captive portal mini-window and opens the full page.
+  server.sendHeader("Location", "http://192.168.4.1/", true);
+  server.send(302, "text/plain", "");
+}
+
+void WebConfig::handleResetCredentials()
+{
+  // Clear WiFi and MQTT credentials; keep port and all other settings.
+  config.set(CONFIG_TAG::WIFI_SSID,       "");
+  config.set(CONFIG_TAG::WIFI_PASSPHRASE, "");
+  config.set(CONFIG_TAG::MQTT_SERVER,     "");
+  config.set(CONFIG_TAG::MQTT_USER,       "");
+  config.set(CONFIG_TAG::MQTT_PASSWORD,   "");
+
+  if (!config.save())
+  {
+    server.send(500, "text/plain; charset=utf-8", "Failed to save config");
+    return;
+  }
+
+  server.send(200, "text/html; charset=utf-8",
+              buildRestartPage("Credentials reset", "WiFi and MQTT credentials cleared. The device will restart now..."));
   delay(1000);
   ESP.restart();
 }

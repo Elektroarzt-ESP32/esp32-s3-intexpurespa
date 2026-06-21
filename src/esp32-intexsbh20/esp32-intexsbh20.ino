@@ -200,12 +200,21 @@ void setup()
       });
 
       mqttClient.addSubscriber(MQTT_TOPIC::CMD_POWER, [](bool b) -> void {
+        // Optimistic publish BEFORE the blocking setPowerOn() call.
+        // Fix A (subscriptionUpdate) already erased publications["power"], so
+        // changed=true here and the broker's retained message is updated
+        // immediately. This prevents HA from reading a stale retained "on"
+        // if MQTT reconnects during the ~2.5 s blocking command — the broker
+        // now serves the desired state to any reconnecting subscriber.
+        // mqttPublisher.loop() will overwrite this with the verified panel
+        // state once setPowerOn() returns (retain=true, so it stays fresh).
+        mqttClient.publish(MQTT_TOPIC::POWER, b ? "on" : "off", true, true);
+
+        // Abort any pending boot temp set sequence so it cannot override
+        // a manual power command that arrives while the sequence is running.
+        bootTempSetSyncState = BOOT_TEMPSET_DONE;
         pureSpaIO.markTempDisplayDisturbance();
         pureSpaIO.setPowerOn(b);
-        delay(200);
-        yield();
-
-        mqttClient.publish(MQTT_TOPIC::POWER, pureSpaIO.isPowerOn() ? "on" : "off", true, true);
       });
 
       mqttClient.addSubscriber(MQTT_TOPIC::CMD_WATER, [](int i) -> void {
