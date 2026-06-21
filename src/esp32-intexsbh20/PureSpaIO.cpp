@@ -1419,8 +1419,37 @@ inline void PureSpaIO::decodeDisplay()
                     && diff(state.frameCounter, g_lastTempUiActionFrame)
                            <= spaBusFramesForWallMs(TEMP_UI_WATER_SUPPRESS_MS))
                 {
+                  // Water temp suppressed during button-press window.
+                  // Spa models that show the new setpoint stably (no blank phase)
+                  // are detected here: treat a stable temp value as the new setpoint
+                  // when the display changed AND the value is in the setpoint range.
                   isrState.latestWaterTemp = UNDEF::UINT;
                   isrState.stableWaterTempCount = CONFIRM_FRAMES::NOT_BLINKING;
+
+                  const int stableC = displayTempToCelsiusRaw(isrState.displayValue);
+                  const int waterC  = (state.waterTemp != UNDEF::UINT)
+                    ? displayTempToCelsiusRaw(state.waterTemp) : UNDEF::INT;
+                  const int prevDC  = (state.desiredTemp != UNDEF::UINT)
+                    ? displayTempToCelsiusRaw(state.desiredTemp) : UNDEF::INT;
+
+                  if (state.error == ERROR_NONE
+                      && stableC != UNDEF::INT
+                      && stableC >= WATER_TEMP::SET_MIN
+                      && stableC <= WATER_TEMP::SET_MAX
+                      && !shouldRejectBlinkAsSetpoint(isrState.displayValue, prevDC, waterC,
+                                                      state.frameCounter))
+                  {
+                    if (state.desiredTemp != isrState.displayValue)
+                    {
+                      g_lastDesiredBusRawChangeFrame = state.frameCounter;
+                    }
+                    state.desiredTemp = isrState.displayValue;
+                    if (stableC != UNDEF::INT)
+                    {
+                      g_lastKnownSetTemp = stableC;
+                      g_lastAcceptedDesiredFromIsrC = stableC;
+                    }
+                  }
                 }
                 else if (g_lastBlinkEndedFrame != 0
                          && diff(state.frameCounter, g_lastBlinkEndedFrame)

@@ -1,5 +1,57 @@
 # Changelog
 
+## [1.4.6-esp32-s3] – 2026-06-22
+
+### Fix: stable setpoint detection for SB-H20 display protocol (`PureSpaIO.cpp`)
+
+**Root cause (found via MQTT debug build 1.4.5):**  
+The ISR's setpoint detection relied exclusively on a "blinking" display path:
+the spa panel was expected to alternate between showing the setpoint value
+and a blank display. The SB-H20/SSP-H-20-1/SB-B20 models only show this
+blank transition when *entering* setpoint display mode for the first time
+(e.g. during boot discovery). Subsequent temperature button presses while
+already in setpoint mode update the displayed value **stably, without a
+blank phase**. Since `isDisplayBlinking` was never set to `true` for these
+subsequent presses, `state.desiredTemp` was never updated, and the per-step
+confirmation poll in `setDesiredWaterTempCelsius()` timed out on every step
+after the first.
+
+**Symptom:**  
+- Multi-degree temperature changes worked only for the very first change after
+  boot (or after a device restart with the spa in blink-entry mode).
+- All subsequent changes silently failed: the buzzer confirmed the button press
+  (`click=1`), but `confirmSetpointChange` ran 20 polls × 150 ms and found
+  `state.desiredTemp` unchanged every time (`cand=prev`), then retried once
+  more and aborted.
+
+**Fix:**  
+Added a stable-display setpoint detection path in `decodeDisplay()`. When:
+- `isDisplayBlinking` is false (no blink/blank cycle detected), AND
+- a recent temp UI action occurred within `TEMP_UI_WATER_SUPPRESS_MS` (3 s),
+  AND
+- the stable display shows a value in the valid setpoint range
+  [SET_MIN, SET_MAX], AND
+- `shouldRejectBlinkAsSetpoint()` approves it
+
+then `state.desiredTemp`, `g_lastKnownSetTemp` and
+`g_lastAcceptedDesiredFromIsrC` are updated immediately from the stable
+display value — making the confirmation poll succeed within the first few
+polls instead of timing out.
+
+The existing blink-based path (for spa models that do blank between setpoint
+values, e.g. SJB-HS) is unchanged and still takes priority when
+`isDisplayBlinking` is true.
+
+**Affected model:** SB-H20 / SSP-H-20-1 / SB-B20 (and likely variants).
+
+---
+
+## [1.4.5-debug] – 2026-06-22
+
+### Debug build — MQTT-based ISR stats (not for production)
+
+---
+
 ## [1.4.4-debug] – 2026-06-21
 
 ### Debug build — ISR blink-detection diagnostics
