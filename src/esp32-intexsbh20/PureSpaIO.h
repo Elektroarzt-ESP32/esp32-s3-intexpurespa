@@ -252,6 +252,7 @@ private:
   public:
     static const unsigned int PRESS_COUNT = BLINK::PERIOD/CYCLE::PERIOD; // cycles, must be long enough to activate buzzer
     static const unsigned int PRESS_SHORT_COUNT = 520/CYCLE::PERIOD; // cycles, tuned so the first virtual press reliably enters temp set mode on Intex panels
+    static const unsigned int PRESS_INCREMENT_COUNT = 5; // cycles for setpoint increment steps 2+ (already in setpoint mode)
     static const unsigned int ACK_CHECK_PERIOD = 10; // ms
     static const unsigned int ACK_TIMEOUT = 2*PRESS_COUNT*CYCLE::PERIOD; // ms
     static const unsigned int VERIFY_DELAY = 350; // ms
@@ -341,7 +342,7 @@ private:
   int convertDisplayToCelsius(uint32 value) const;
   bool waitBuzzerOff() const;
   bool pressButton(volatile unsigned int& buttonPressCount);
-  bool changeWaterTemp(int up);
+  bool changeWaterTemp(int up, unsigned int pressCount = BUTTON::PRESS_SHORT_COUNT);
   bool verifyBoolState(uint8 actualState, bool desiredState) const;
   bool setOutputState(volatile unsigned int& buttonPressCount, bool desiredState, uint8 actualState, uint8 (*refreshState)());
 

@@ -67,7 +67,7 @@ bool otaStatusInitialized = false;
 static bool prevMqttConnected = false;
 
 // Debounce for temperature commands (avoid repeated setpoint changes).
-static const unsigned long WATER_SET_DEBOUNCE_MS = 1500;
+static const unsigned long WATER_SET_DEBOUNCE_MS = 300;
 int pendingWaterSetTempC = PureSpaIO::UNDEF::INT;
 unsigned long pendingWaterSetTempAtMs = 0;
 

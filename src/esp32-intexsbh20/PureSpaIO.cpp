@@ -688,6 +688,7 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
   }
 
   int deltaTemp = temp - setTemp;
+  bool firstStep = true; // first step needs PRESS_SHORT_COUNT to enter setpoint mode
 
   while (deltaTemp != 0)
   {
@@ -752,7 +753,10 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
       state.frameCounter,
       g_lastTempUiActionFrame);
 
-    bool clickOk = changeWaterTemp(direction);
+    const unsigned int pressCount = firstStep ? BUTTON::PRESS_SHORT_COUNT : BUTTON::PRESS_INCREMENT_COUNT;
+    firstStep = false;
+
+    bool clickOk = changeWaterTemp(direction, pressCount);
     g_dbgStats.clickOk    = clickOk;
     g_dbgStats.latestBlink= isrState.latestBlinkingTemp;
     DEBUG_MSG("cWT click=%d blink=%d latBlink=%08X\n",
@@ -1093,7 +1097,7 @@ bool PureSpaIO::waitBuzzerOff() const
   }
 }
 
-bool PureSpaIO::changeWaterTemp(int up)
+bool PureSpaIO::changeWaterTemp(int up, unsigned int pressCount)
 {
   bool success = false;
 
@@ -1106,10 +1110,11 @@ bool PureSpaIO::changeWaterTemp(int up)
     wifiLightSleepOn();
 #endif
 
-    int tries = BUTTON::PRESS_SHORT_COUNT*CYCLE::PERIOD/BUTTON::ACK_CHECK_PERIOD;
+    int tries = (int)(pressCount * CYCLE::PERIOD / BUTTON::ACK_CHECK_PERIOD);
+    if (tries < 1) tries = 1;
     if (up > 0)
     {
-      buttons.toggleTempUp = BUTTON::PRESS_SHORT_COUNT;
+      buttons.toggleTempUp = pressCount;
       while (buttons.toggleTempUp && tries)
       {
         delay(BUTTON::ACK_CHECK_PERIOD);
@@ -1120,7 +1125,7 @@ bool PureSpaIO::changeWaterTemp(int up)
     }
     else if (up < 0)
     {
-      buttons.toggleTempDown = BUTTON::PRESS_SHORT_COUNT;
+      buttons.toggleTempDown = pressCount;
       while (buttons.toggleTempDown && tries)
       {
         delay(BUTTON::ACK_CHECK_PERIOD);
