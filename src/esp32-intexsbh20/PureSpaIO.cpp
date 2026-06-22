@@ -687,6 +687,32 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
     g_lastKnownSetTemp = setTemp;
   }
 
+  // Enter setpoint display mode with one press in the target direction.
+  // On Intex SB-H20: the first press from water-temp display only shows
+  // the current setpoint without changing it. Re-reading setTemp afterward
+  // accounts for both cases: spa was in water-temp mode (setTemp unchanged)
+  // or already in setpoint mode (setTemp incremented by 1 step).
+  {
+    const int modeDir = (temp > setTemp) ? 1 : -1;
+    if (changeWaterTemp(modeDir))
+    {
+      const int INIT_DELAY_MS = 150;
+      const int INIT_TRIES = 20;
+      int modeTemp = UNDEF::INT;
+      for (int t = 0; t < INIT_TRIES && modeTemp == UNDEF::INT; ++t)
+      {
+        delay(INIT_DELAY_MS);
+        yield();
+        modeTemp = getDesiredWaterTempCelsius();
+      }
+      if (modeTemp != UNDEF::INT)
+      {
+        setTemp = modeTemp;
+        g_lastKnownSetTemp = setTemp;
+      }
+    }
+  }
+
   int deltaTemp = temp - setTemp;
 
   while (deltaTemp != 0)
