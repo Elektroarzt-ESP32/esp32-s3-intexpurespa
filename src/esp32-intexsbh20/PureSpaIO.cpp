@@ -1579,9 +1579,41 @@ inline void PureSpaIO::decodeDisplay()
     }
     else
     {
-      isrState.latestDisplayValue = isrState.displayValue;
-      isrState.stableDisplayValueCount = CONFIRM_FRAMES::REGULAR;
-      isrState.stableDisplayBlankCount = CONFIRM_FRAMES::SIGNIFICANT_BLANK_STABLE;
+      // When a recent temp button press is active, ignore display values that move
+      // in the wrong direction. On spa models that do not show a proper blank phase
+      // between setpoint values (e.g. SB-H20 shows a garbage/partial frame instead),
+      // such frames would reset stableDisplayValueCount for the correct new value,
+      // preventing the stable setpoint detection from ever reaching its count of 3.
+      // By not resetting the counter for off-direction values, the correct new setpoint
+      // accumulates its 3 consecutive valid frames uninterrupted.
+      bool resetCount = true;
+      if (g_lastTempUiActionDirection != 0
+          && g_lastTempUiActionFrame != 0
+          && diff(state.frameCounter, g_lastTempUiActionFrame)
+                 <= spaBusFramesForWallMs(TEMP_UI_WATER_SUPPRESS_MS)
+          && displayIsTemp(isrState.displayValue))
+      {
+        const int newC   = displayTempToCelsiusRaw(isrState.displayValue);
+        const int prevDC = (state.desiredTemp != UNDEF::UINT)
+                         ? displayTempToCelsiusRaw(state.desiredTemp) : UNDEF::INT;
+        if (newC != UNDEF::INT && prevDC != UNDEF::INT)
+        {
+          const bool dirOk =
+            (g_lastTempUiActionDirection > 0 && newC > prevDC)
+            || (g_lastTempUiActionDirection < 0 && newC < prevDC);
+          if (!dirOk)
+          {
+            resetCount = false;
+          }
+        }
+      }
+
+      if (resetCount)
+      {
+        isrState.latestDisplayValue = isrState.displayValue;
+        isrState.stableDisplayValueCount = CONFIRM_FRAMES::REGULAR;
+        isrState.stableDisplayBlankCount = CONFIRM_FRAMES::SIGNIFICANT_BLANK_STABLE;
+      }
     }
   }
 }
