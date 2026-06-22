@@ -1157,7 +1157,10 @@ bool PureSpaIO::changeWaterTemp(int up, unsigned int pressCount)
       buttons.toggleTempDown = 0;
     }
 
-    tries = (BUTTON::PRESS_COUNT - BUTTON::PRESS_SHORT_COUNT)*CYCLE::PERIOD/BUTTON::ACK_CHECK_PERIOD;
+    // Use ACK_TIMEOUT for the buzzer wait. The original expression
+    // (PRESS_COUNT - PRESS_SHORT_COUNT) underflows to ~429 million when
+    // PRESS_SHORT_COUNT > PRESS_COUNT, causing an effectively infinite loop.
+    tries = (int)(BUTTON::ACK_TIMEOUT / BUTTON::ACK_CHECK_PERIOD);
     while (!state.buzzer && tries)
     {
       delay(BUTTON::ACK_CHECK_PERIOD);
