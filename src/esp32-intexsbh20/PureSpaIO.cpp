@@ -1153,15 +1153,26 @@ bool PureSpaIO::changeWaterTemp(int up)
       g_lastDesiredBusRawChangeFrame = state.frameCounter;
       markCommandTime(g_lastGenericCommandMs);
 
-      // Reset ISR display-tracking state so each step gets a clean slate.
-      // Stale latestBlinkingTemp from a previous step would prevent the blink path
-      // from accumulating the new setpoint value (wrong anchor for count).
-      isrState.isDisplayBlinking        = false;
-      isrState.latestBlinkingTemp        = UNDEF::UINT;
-      isrState.stableBlinkingWaterTempCount = 0;
-      isrState.latestDisplayValue        = UNDEF::UINT;
-      isrState.stableDisplayValueCount   = CONFIRM_FRAMES::REGULAR;
-      isrState.stableDisplayBlankCount   = CONFIRM_FRAMES::SIGNIFICANT_BLANK_STABLE;
+      // The buzzer is the spa's acknowledgment that the setpoint changed by one step.
+      // Write the expected new desiredTemp directly — no display-parsing required.
+      // This makes confirmSetpointChange() succeed on the very first poll regardless
+      // of how the spa encodes its setpoint blink/display transition.
+      const int currentDC = displayTempToCelsiusRaw(state.desiredTemp);
+      if (currentDC != UNDEF::INT)
+      {
+        const int newDC = currentDC + (up > 0 ? 1 : -1);
+        if (newDC >= WATER_TEMP::SET_MIN && newDC <= WATER_TEMP::SET_MAX)
+        {
+          // Re-encode keeping the unit character from the existing raw value
+          const uint32 unitByte = state.desiredTemp & 0x00FF0000U;
+          const uint32 newRaw   = unitByte
+                                | ((uint32)('0' + newDC / 10) << 8)
+                                | ((uint32)('0' + newDC % 10));
+          state.desiredTemp            = newRaw;
+          g_lastKnownSetTemp           = newDC;
+          g_lastAcceptedDesiredFromIsrC = newDC;
+        }
+      }
     }
     else
     {
