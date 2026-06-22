@@ -1152,6 +1152,16 @@ bool PureSpaIO::changeWaterTemp(int up)
       g_lastTempUiActionDirection = (up > 0) ? 1 : -1;
       g_lastDesiredBusRawChangeFrame = state.frameCounter;
       markCommandTime(g_lastGenericCommandMs);
+
+      // Reset ISR display-tracking state so each step gets a clean slate.
+      // Stale latestBlinkingTemp from a previous step would prevent the blink path
+      // from accumulating the new setpoint value (wrong anchor for count).
+      isrState.isDisplayBlinking        = false;
+      isrState.latestBlinkingTemp        = UNDEF::UINT;
+      isrState.stableBlinkingWaterTempCount = 0;
+      isrState.latestDisplayValue        = UNDEF::UINT;
+      isrState.stableDisplayValueCount   = CONFIRM_FRAMES::REGULAR;
+      isrState.stableDisplayBlankCount   = CONFIRM_FRAMES::SIGNIFICANT_BLANK_STABLE;
     }
     else
     {
