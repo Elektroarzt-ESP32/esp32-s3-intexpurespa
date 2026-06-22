@@ -1590,20 +1590,28 @@ inline void PureSpaIO::decodeDisplay()
       if (g_lastTempUiActionDirection != 0
           && g_lastTempUiActionFrame != 0
           && diff(state.frameCounter, g_lastTempUiActionFrame)
-                 <= spaBusFramesForWallMs(TEMP_UI_WATER_SUPPRESS_MS)
-          && displayIsTemp(isrState.displayValue))
+                 <= spaBusFramesForWallMs(TEMP_UI_WATER_SUPPRESS_MS))
       {
-        const int newC   = displayTempToCelsiusRaw(isrState.displayValue);
-        const int prevDC = (state.desiredTemp != UNDEF::UINT)
-                         ? displayTempToCelsiusRaw(state.desiredTemp) : UNDEF::INT;
-        if (newC != UNDEF::INT && prevDC != UNDEF::INT)
+        if (!displayIsTemp(isrState.displayValue))
         {
-          const bool dirOk =
-            (g_lastTempUiActionDirection > 0 && newC > prevDC)
-            || (g_lastTempUiActionDirection < 0 && newC < prevDC);
-          if (!dirOk)
+          // Non-temperature value during an active button press is a garbage/blank
+          // frame — ignore it so it does not reset the stable count for the real value.
+          resetCount = false;
+        }
+        else
+        {
+          const int newC   = displayTempToCelsiusRaw(isrState.displayValue);
+          const int prevDC = (state.desiredTemp != UNDEF::UINT)
+                           ? displayTempToCelsiusRaw(state.desiredTemp) : UNDEF::INT;
+          if (newC != UNDEF::INT && prevDC != UNDEF::INT)
           {
-            resetCount = false;
+            const bool dirOk =
+              (g_lastTempUiActionDirection > 0 && newC > prevDC)
+              || (g_lastTempUiActionDirection < 0 && newC < prevDC);
+            if (!dirOk)
+            {
+              resetCount = false;
+            }
           }
         }
       }
