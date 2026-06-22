@@ -252,7 +252,7 @@ private:
   public:
     static const unsigned int PRESS_COUNT = BLINK::PERIOD/CYCLE::PERIOD; // cycles, must be long enough to activate buzzer
     static const unsigned int PRESS_SHORT_COUNT = 520/CYCLE::PERIOD; // cycles, tuned so the first virtual press reliably enters temp set mode on Intex panels
-    static const unsigned int PRESS_INCREMENT_COUNT = 10; // cycles for setpoint increment steps 2+ (already in setpoint mode)
+    static const unsigned int PRESS_INCREMENT_COUNT = 15; // cycles for setpoint increment steps 2+ (already in setpoint mode)
     static const unsigned int ACK_CHECK_PERIOD = 10; // ms
     static const unsigned int ACK_TIMEOUT = 2*PRESS_COUNT*CYCLE::PERIOD; // ms
     static const unsigned int VERIFY_DELAY = 350; // ms
