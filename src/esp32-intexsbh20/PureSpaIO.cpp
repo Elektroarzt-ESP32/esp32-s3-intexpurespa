@@ -1163,11 +1163,14 @@ bool PureSpaIO::changeWaterTemp(int up)
         const int newDC = currentDC + (up > 0 ? 1 : -1);
         if (newDC >= WATER_TEMP::SET_MIN && newDC <= WATER_TEMP::SET_MAX)
         {
-          // Re-encode keeping the unit character from the existing raw value
-          const uint32 unitByte = state.desiredTemp & 0x00FF0000U;
-          const uint32 newRaw   = unitByte
-                                | ((uint32)('0' + newDC / 10) << 8)
-                                | ((uint32)('0' + newDC % 10));
+          // Re-encode keeping the unit character (POS_4, byte 3) from existing raw.
+          // Display layout: byte0=POS_1 hundreds, byte1=POS_2 tens,
+          //                 byte2=POS_3 units, byte3=POS_4 unit-char ('C'/'F')
+          const uint32 unitByte = state.desiredTemp & 0xFF000000U; // POS_4
+          const uint32 newRaw   = unitByte                         // POS_4: 'C'/'F'
+                                | (uint32)'0'                      // POS_1: hundreds='0'
+                                | ((uint32)('0' + newDC / 10) << 8)  // POS_2: tens
+                                | ((uint32)('0' + newDC % 10) << 16); // POS_3: units
           state.desiredTemp            = newRaw;
           g_lastKnownSetTemp           = newDC;
           g_lastAcceptedDesiredFromIsrC = newDC;
