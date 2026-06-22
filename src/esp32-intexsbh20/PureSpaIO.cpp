@@ -688,7 +688,6 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
   }
 
   int deltaTemp = temp - setTemp;
-  bool firstStep = true; // first step needs PRESS_SHORT_COUNT to enter setpoint mode
 
   while (deltaTemp != 0)
   {
@@ -753,10 +752,7 @@ void PureSpaIO::setDesiredWaterTempCelsius(int temp)
       state.frameCounter,
       g_lastTempUiActionFrame);
 
-    const unsigned int pressCount = firstStep ? BUTTON::PRESS_SHORT_COUNT : BUTTON::PRESS_INCREMENT_COUNT;
-    firstStep = false;
-
-    bool clickOk = changeWaterTemp(direction, pressCount);
+    bool clickOk = changeWaterTemp(direction);
     g_dbgStats.clickOk    = clickOk;
     g_dbgStats.latestBlink= isrState.latestBlinkingTemp;
     DEBUG_MSG("cWT click=%d blink=%d latBlink=%08X\n",
@@ -1157,30 +1153,11 @@ bool PureSpaIO::changeWaterTemp(int up, unsigned int pressCount)
       g_lastTempUiActionDirection = (up > 0) ? 1 : -1;
       g_lastDesiredBusRawChangeFrame = state.frameCounter;
       markCommandTime(g_lastGenericCommandMs);
-
-      // The buzzer is the spa's acknowledgment that the setpoint changed by one step.
-      // Write the expected new desiredTemp directly — no display-parsing required.
-      // This makes confirmSetpointChange() succeed on the very first poll regardless
-      // of how the spa encodes its setpoint blink/display transition.
-      const int currentDC = displayTempToCelsiusRaw(state.desiredTemp);
-      if (currentDC != UNDEF::INT)
-      {
-        const int newDC = currentDC + (up > 0 ? 1 : -1);
-        if (newDC >= WATER_TEMP::SET_MIN && newDC <= WATER_TEMP::SET_MAX)
-        {
-          // Re-encode keeping the unit character (POS_4, byte 3) from existing raw.
-          // Display layout: byte0=POS_1 hundreds, byte1=POS_2 tens,
-          //                 byte2=POS_3 units, byte3=POS_4 unit-char ('C'/'F')
-          const uint32 unitByte = state.desiredTemp & 0xFF000000U; // POS_4
-          const uint32 newRaw   = unitByte                         // POS_4: 'C'/'F'
-                                | (uint32)'0'                      // POS_1: hundreds='0'
-                                | ((uint32)('0' + newDC / 10) << 8)  // POS_2: tens
-                                | ((uint32)('0' + newDC % 10) << 16); // POS_3: units
-          state.desiredTemp            = newRaw;
-          g_lastKnownSetTemp           = newDC;
-          g_lastAcceptedDesiredFromIsrC = newDC;
-        }
-      }
+      // No direct-write: the first buzzer press may only enter setpoint display mode
+      // without actually incrementing the value (Intex SB-H20 behaviour). Let the
+      // ISR detect the real new setpoint from the display via the stable/blink paths.
+      // confirmSetpointChange() will fail on mode-entry presses and the retry will
+      // send the actual increment — matching the upstream logic.
     }
     else
     {
