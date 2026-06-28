@@ -71,7 +71,7 @@ static inline void wifiForceSleepWakeCompat()
 #define DEFAULT_CUSTOM_MODEL_NAME_VALUE "Intex_PureSpa"
 
 // #define FORCE_WIFI_SLEEP
-// #define SERIAL_DEBUG
+#define SERIAL_DEBUG
 
 /*****************************************************************************/
 

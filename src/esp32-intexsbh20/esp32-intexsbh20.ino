@@ -107,7 +107,6 @@ static String readConfigOrDefault(const char* key, const char* fallback = "")
 void setup()
 {
   Serial.begin(74880);
-  Serial.setTxTimeoutMs(0); // non-blocking USB CDC on ESP32-S3
   delay(20);
 
   const esp_reset_reason_t rr = esp_reset_reason();
