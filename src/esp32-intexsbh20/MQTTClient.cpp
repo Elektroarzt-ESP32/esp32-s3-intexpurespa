@@ -105,22 +105,6 @@ void MQTTClient::subscriptionUpdate(char* topic, byte* message, unsigned int len
     return;
   }
 
-  // Erase the cache entry for the corresponding state topic BEFORE invoking
-  // the subscriber callback.  The callback (e.g. CMD_POWER) calls publish()
-  // with force=true, which writes a new cache entry.  If we erased AFTER the
-  // callback (original order) that cache entry would be destroyed immediately,
-  // causing MQTTPublisher to see "no cached value" on its next poll and
-  // re-publish a potentially transient panel reading → flicker in HA.
-  String t = topic;
-  String c = "command/";
-  int p = t.indexOf(c);
-  if (p >= 0)
-  {
-    t.remove(p, c.length());
-    publications.erase(t);
-  }
-  publications.erase(willTopic);
-
   auto ib = boolSubscriber.find(topic);
   if (ib != boolSubscriber.end())
   {
@@ -142,6 +126,16 @@ void MQTTClient::subscriptionUpdate(char* topic, byte* message, unsigned int len
       ii->second(value);
     }
   }
+
+  String t = topic;
+  String c = "command/";
+  int p = t.indexOf(c);
+  if (p >= 0)
+  {
+    t.remove(p, c.length());
+    publications.erase(t);
+  }
+  publications.erase(willTopic);
 }
 
 void MQTTClient::setup(const char* mqttServer, uint16 mqttPort, const char* mqttUsername, const char* mqttPassword, const char* cid, const char* wt, const char* wm)

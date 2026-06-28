@@ -71,13 +71,13 @@ static inline void wifiForceSleepWakeCompat()
 #define DEFAULT_CUSTOM_MODEL_NAME_VALUE "Intex_PureSpa"
 
 // #define FORCE_WIFI_SLEEP
-#define SERIAL_DEBUG
+// #define SERIAL_DEBUG
 
 /*****************************************************************************/
 
 namespace CONFIG
 {
-  const char WIFI_VERSION[] = "1.4.3-esp32-s3";
+  const char WIFI_VERSION[] = "1.5.0-esp32-s3";
 
   const unsigned long WIFI_MAX_DISCONNECT_DURATION = 900000;
 

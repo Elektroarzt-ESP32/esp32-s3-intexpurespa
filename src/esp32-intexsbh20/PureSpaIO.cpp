@@ -246,11 +246,6 @@ static constexpr unsigned long POST_BLINK_WATER_SUPPRESS_MS = 1000;
 
 static constexpr unsigned long ERROR_CLEAR_HOLD_MS = 10000;
 
-// How long after a temp up/down button press the blinking display is still
-// considered to be showing the new SETPOINT, not the actual water temp (see
-// recentTempUiAction usage in decodeDisplay() and shouldRejectBlinkAsSetpoint()).
-static constexpr unsigned long RECENT_TEMP_UI_ACTION_MS = 12000;
-
 static volatile unsigned int g_errorClearOkStartFrame = 0;
 static volatile unsigned int g_lastTempUiActionFrame = 0;
 static volatile unsigned int g_lastBlinkEndedFrame = 0;
@@ -310,7 +305,7 @@ static bool shouldRejectBlinkAsSetpoint(uint32 blinkRaw, int prevDesiredC, int w
 
   const bool recentUiAction =
     (g_lastTempUiActionFrame != 0)
-    && diff(frameNow, g_lastTempUiActionFrame) <= spaBusFramesForWallMs(RECENT_TEMP_UI_ACTION_MS);
+    && diff(frameNow, g_lastTempUiActionFrame) <= spaBusFramesForWallMs(12000);
 
   const bool inPostBlink =
     (g_lastBlinkEndedFrame != 0)
@@ -1135,7 +1130,6 @@ IRAM_ATTR void PureSpaIO::clockRisingISR(void* arg)
     if (isrState.receivedBits == FRAME::BITS)
     {
       state.frameCounter++;
-
       if (isrState.frameValue == FRAME_TYPE::CUE)
       {
       }
@@ -1300,24 +1294,6 @@ inline void PureSpaIO::decodeDisplay()
                       : UNDEF::INT;
                     const int blinkC = displayTempToCelsiusRaw(isrState.latestBlinkingTemp);
 
-                    // Bug fix: a blinking value within +/-1 degC of the actual water temp is
-                    // not automatically the panel's own "blink the actual temp" quirk. During
-                    // an active temp button sequence (recent press, see g_lastTempUiActionFrame)
-                    // the blink IS the new setpoint and it commonly lands close to the actual
-                    // temp - that's the normal case when raising/lowering the target by a few
-                    // degrees. Misrouting it into state.waterTemp instead of state.desiredTemp
-                    // made setDesiredWaterTempCelsius()'s per-step confirm poll see a stale
-                    // value for the full 3s timeout, trigger a retry (a second real button
-                    // press), and eventually abort the whole multi-degree request after two
-                    // failures - while the panel's real setpoint kept advancing on every button
-                    // ACK regardless of this readback, leaving HA's reported target behind the
-                    // panel's actual one. Only apply the "it's the actual temp" shortcut when
-                    // there has been no recent temp button action.
-                    const bool recentTempUiAction =
-                      (g_lastTempUiActionFrame != 0)
-                      && diff(state.frameCounter, g_lastTempUiActionFrame)
-                             <= spaBusFramesForWallMs(RECENT_TEMP_UI_ACTION_MS);
-
                     if (state.error == ERROR_NONE && blinkC != PureSpaIO::UNDEF::INT
                         && blinkC < PureSpaIO::WATER_TEMP::SET_MIN)
                     {
@@ -1328,8 +1304,7 @@ inline void PureSpaIO::decodeDisplay()
                     }
                     else if (state.error == ERROR_NONE && blinkC != PureSpaIO::UNDEF::INT
                              && waterC != PureSpaIO::UNDEF::INT
-                             && abs(blinkC - waterC) <= 1
-                             && !recentTempUiAction)
+                             && abs(blinkC - waterC) <= 1)
                     {
                       if (state.waterTemp != isrState.latestBlinkingTemp)
                       {

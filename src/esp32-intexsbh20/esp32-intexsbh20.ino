@@ -29,10 +29,10 @@
  * ESP32 firmware; SB-H20 and SJB-HS panel models.
  * Target: ESP32 (Arduino-ESP32; GPIO numbers refer to the chip, not the silkscreen).
  * GPIO pins (see common.h, namespace PIN):
- *   6  CLOCK  — spa panel bus clock (digital input, interrupt on rising edge)
- *   7  DATA   — spa panel bus data line (input; open-drain when driving)
- *   8  LATCH  — spa panel bus latch / frame sync (digital input)
- *   4  NTC    — ADC1, on-board NTC thermistor for controller temperature
+ *   18  CLOCK  — spa panel bus clock (digital input, interrupt on rising edge)
+ *   19  DATA   — spa panel bus data line (input; open-drain when driving)
+ *   23  LATCH  — spa panel bus latch / frame sync (digital input)
+ *   34  NTC    — ADC1, on-board NTC thermistor for controller temperature
  */
 
 #include "common.h"
@@ -107,6 +107,7 @@ static String readConfigOrDefault(const char* key, const char* fallback = "")
 void setup()
 {
   Serial.begin(74880);
+  Serial.setTxTimeoutMs(0); // non-blocking USB CDC on ESP32-S3
   delay(20);
 
   const esp_reset_reason_t rr = esp_reset_reason();
@@ -120,8 +121,9 @@ void setup()
 
   Serial.printf("%s MQTT WiFi Controller %s\n", pureSpaIO.getModelName(), CONFIG::WIFI_VERSION);
   Serial.printf("build with Arduino Core for ESP32 %s\n", ESP.getSdkVersion());
-  Serial.printf("PIN CLOCK=%d DATA=%d LATCH=%d NTC=%d\n", PIN::CLOCK, PIN::DATA, PIN::LATCH, PIN::NTC);
-  Serial.printf("Free heap: %u bytes\n", ESP.getFreeHeap());
+  Serial.printf("PIN CLOCK=%u DATA=%u LATCH=%u NTC=%u\n",
+                PIN::CLOCK, PIN::DATA, PIN::LATCH, PIN::NTC);
+  Serial.printf("Free heap: %u bytes\n", static_cast<unsigned int>(ESP.getFreeHeap()));
 
   webConfig.begin();
 
@@ -130,10 +132,8 @@ void setup()
   {
     try
     {
-      // WiFi mode is already set to WIFI_AP_STA by webConfig.begin().
-      // Do NOT call WiFi.mode() again here — on ESP32-S3 / Arduino Core v5.x
-      // a second WiFi.mode() call resets the WiFi stack and destroys the
-      // already-running SoftAP.
+      // WiFi.mode() already set by webConfig.begin() above.
+      // A second call resets the running SoftAP on ESP32-S3/Arduino Core v5.x.
       WiFi.begin(config.get(CONFIG_TAG::WIFI_SSID), config.get(CONFIG_TAG::WIFI_PASSPHRASE));
 
       bool retainAll = readConfigOrDefault(CONFIG_TAG::MQTT_RETAIN, "no") != "no";
@@ -200,21 +200,12 @@ void setup()
       });
 
       mqttClient.addSubscriber(MQTT_TOPIC::CMD_POWER, [](bool b) -> void {
-        // Optimistic publish BEFORE the blocking setPowerOn() call.
-        // Fix A (subscriptionUpdate) already erased publications["power"], so
-        // changed=true here and the broker's retained message is updated
-        // immediately. This prevents HA from reading a stale retained "on"
-        // if MQTT reconnects during the ~2.5 s blocking command — the broker
-        // now serves the desired state to any reconnecting subscriber.
-        // mqttPublisher.loop() will overwrite this with the verified panel
-        // state once setPowerOn() returns (retain=true, so it stays fresh).
-        mqttClient.publish(MQTT_TOPIC::POWER, b ? "on" : "off", true, true);
-
-        // Abort any pending boot temp set sequence so it cannot override
-        // a manual power command that arrives while the sequence is running.
-        bootTempSetSyncState = BOOT_TEMPSET_DONE;
         pureSpaIO.markTempDisplayDisturbance();
         pureSpaIO.setPowerOn(b);
+        delay(200);
+        yield();
+
+        mqttClient.publish(MQTT_TOPIC::POWER, pureSpaIO.isPowerOn() ? "on" : "off", true, true);
       });
 
       mqttClient.addSubscriber(MQTT_TOPIC::CMD_WATER, [](int i) -> void {
@@ -286,9 +277,6 @@ void setup()
         "offline"
       );
 
-      // NTC circuit: +3V3 → TH1 (10kΩ NTC) → junction → R2 (22kΩ) → GND
-      // Junction connected DIRECTLY to IO4 (no voltage divider).
-      // adcScale = 1.0  →  V_adc = V_junction (no scaling needed)
       thermometer.setup(22000, 3.30f, 1.0f);
       ready = true;
     }
@@ -367,8 +355,6 @@ void loop()
       {
         if (bootSpaOnlineSinceMs == 0)
         {
-          Serial.printf("[DBG %lus] Spa panel ONLINE! frames=%u dropped=%u\n",
-                        now / 1000, pureSpaIO.getTotalFrames(), pureSpaIO.getDroppedFrames());
           bootSpaOnlineSinceMs = now;
         }
       }

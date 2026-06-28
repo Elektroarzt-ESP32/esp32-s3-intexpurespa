@@ -1,6 +1,6 @@
-# ESP32-S3 Intex PureSpa SB-H20 WiFi Controller
+# ESP32 Intex PureSpa SB-H20 WiFi Controller
 
-> This is an unofficial ESP32-S3 fork of the original project.
+> This is an unofficial ESP32 fork of the original project.
 
 ## Credits
 
@@ -10,27 +10,23 @@ https://github.com/jnsbyr/esp8266-intexsbh20
 Based in part on DIYSCIP by Geoffroy Hubert:
 https://github.com/yorffoeg/diyscip
 
-ESP32 port by Petr Kašpar (caspercze):
-https://github.com/caspercze
+This project is an ESP32-based modification of:
+https://github.com/jnsbyr/esp8266-intexsbh20
 
-This project is an ESP32-S3-based modification of the ESP32 port by caspercze, which in
-turn is based on the original ESP8266 project by Jens B.
-
-The goal was to port the project to ESP32-S3, make temperature control functional.
+The goal was to port the project to ESP32, make temperature control functional, simplify usage, and improve integration with Home Assistant.
 
 ---
 
 ## Main changes compared to the original version
 
-* ESP32-S3 support (ported from ESP8266 via caspercze's ESP32 port)
+* ESP32 support instead of ESP8266 (due to higher performance requirements)
 * improved communication stability
 * MQTT integration with Home Assistant autodiscovery support
 * added climate entity for temperature control in Home Assistant
-* web interface for device configuration with captive portal
+* web interface for device configuration
 * single universal firmware (no need to compile for different models)
 * improved value synchronization after device startup
 * topic change to Intex_PureSpa/...
-* NTC temperature reading fixed for Arduino-ESP32 v5.x
 
 <img width="1539" height="728" alt="image" src="https://github.com/user-attachments/assets/e652155e-91c6-47a2-8710-2870890663e0" />
 
@@ -47,22 +43,26 @@ The goal was to port the project to ESP32-S3, make temperature control functiona
 
 ---
 
-## Wiring (ESP32-S3)
+## Wiring (ESP32)
 
-The wiring is based on the original project but adapted for ESP32-S3.
+The wiring is based on the original project but adapted for ESP32.
 
 ### Used pins
 
-* GPIO6  – CLOCK
-* GPIO7  – DATA
-* GPIO8  – LATCH
-* GPIO4  – NTC
+* GPIO18 – CLOCK
+* GPIO19 – DATA
+* GPIO23 – LATCH
+* GPIO34 – NTC
 
 ### Power supply
 
-* 5V / VIN
+* 5V / VIN depending on the ESP32 module used
 * the spa control panel appears to provide sufficient current reserve
-* PTC fuse with 1000 mA (originally ~200 mA)
+* recommended to replace the PTC fuse with at least 500 mA (originally ~200 mA)
+
+### Note
+
+Wiring may vary depending on the specific spa model and ESP32 board used.
 
 ---
 
@@ -88,31 +88,18 @@ The device uses MQTT autodiscovery, so entities are created automatically after 
 
 Prebuilt firmware is available in the **Releases** section.
 
-* download `esp32-s3-intexsbh20.bin`
-* upload to ESP32-S3 (via OTA or esptool)
+* download `.bin` file
+* upload to ESP32 (via OTA or esptool)
 
 ---
 
 ## Installation
 
-1. Upload `esp32-s3-intexsbh20-merged.bin` to ESP32-S3 (first-time / new board)
-   or `esp32-s3-intexsbh20.bin` via OTA for updates
-2. After boot, the device creates a WiFi AP named **Intex_PureSpa**
-3. Connect to the AP — the setup page opens automatically (captive portal)
+1. Upload the firmware (.bin) to ESP32
+2. After boot, the device creates a WiFi AP (192.168.4.1)
+3. Open the web interface
 4. Configure WiFi, MQTT server, spa model and other settings
-5. The device connects to your network and appears in Home Assistant automatically
-
-See [SETUP.md](SETUP.md) for a detailed step-by-step guide.
-
-### Arduino IDE board settings (for compiling from source)
-
-| Setting | Value |
-|---------|-------|
-| Board   | ESP32S3 Dev Module |
-| PSRAM   | Disabled |
-
-> Modules without PSRAM will log `E octal_psram: PSRAM chip is not connected` and may fail
-> to boot if compiled with PSRAM enabled. This project does not use PSRAM.
+5. The device will automatically appear in Home Assistant
 
 ---
 
@@ -120,23 +107,21 @@ See [SETUP.md](SETUP.md) for a detailed step-by-step guide.
 
 * spa power on/off
 * control of filtration, heating, bubbles, etc.
-* reading current and target water temperature
-* MQTT communication with Home Assistant autodiscovery
-* climate entity for temperature control in Home Assistant
-* captive portal — setup page opens automatically on first connect
-* OTA firmware updates via web interface or URL
-* full web-based configuration with credential reset
+* reading current water temperature
+* setting target temperature
+* MQTT communication
+* Home Assistant integration
+* OTA firmware updates via web interface
+* full web-based configuration
 
 ---
 
 ## Notes
 
-This project aimed at providing a ESP32-S3-based PCB solution.
+This project started as a personal modification and evolved into a more complete ESP32-based solution.
 Behavior may differ slightly from the original implementation.
 
 Tested on SB-H20 model (short-term), stable so far.
-
-See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes per release.
 
 ---
 
@@ -149,7 +134,6 @@ It includes code from multiple sources:
 
 - Original project by Jens B. (see repository for license details)
 - DIYSCIP by Geoffroy Hubert (licensed under CC BY-NC-SA 4.0)
-- ESP32 port by Petr Kašpar (caspercze)
 
 Therefore, this project contains components under different licenses.
 

@@ -19,7 +19,6 @@
 #pragma once
 
 #include <WebServer.h>
-#include <DNSServer.h>
 using IntexWebServer = WebServer;
 
 class WebConfig
@@ -31,18 +30,15 @@ public:
 
 private:
   IntexWebServer server{80};
-  DNSServer dnsServer;
   bool active = false;
   bool apStarted = false;
   bool updateSuccess = false;
 
   void ensureFallbackAP();
   void stopFallbackAPIfConnected();
-  void handleCaptivePortal();
   void handleRoot();
   void handleScan();
   void handleSave();
-  void handleResetCredentials();
   void handleUpdateFinished();
   void handleUpdateUpload();
 };

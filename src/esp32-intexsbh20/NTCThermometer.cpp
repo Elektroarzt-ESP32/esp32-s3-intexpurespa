@@ -42,17 +42,9 @@ void NTCThermometer::setup(unsigned int refResistance, float refVoltage, float a
   this->refResistance = refResistance;
   this->refVoltage = refVoltage;
   analogReadResolution(12);
-  // Do NOT call analogSetPinAttenuation() here: on Arduino-ESP32 v5.x it
-  // drives the pin LOW (output mode) instead of configuring ADC attenuation,
-  // which causes analogRead() to return near-zero counts.
-  // analogRead() itself configures the pin as ADC input with the correct
-  // attenuation (ADC_ATTEN_DB_12, 0–3.3 V) on first call.
-  // adcScale: accounts for an external voltage divider between the NTC circuit
-  // and the ADC pin. On ESP8266 D1 Mini the divider was 320k/100k (adcScale=3.2).
-  // On ESP32-S3 the ADC reads 0-3.3 V directly, so if the PCB still has the
-  // same divider, pass adcScale = (R_top + R_bot) / R_bot (e.g. 420.f/100.f).
-  // Without any external divider use adcScale = 1.0f.
-  // The factor scales the raw ADC reading back to represent the undivided voltage.
+  // analogSetPinAttenuation() removed – drives pin as digital OUTPUT LOW on
+  // Arduino-ESP32 v5.x (IDF5), causing near-zero ADC readings. Use default
+  // attenuation instead.
   this->adcScale = (refVoltage * adcScale) / 4095.0f;
 
   for (unsigned int i = 0; i < HISTORY_DEPTH; ++i)
@@ -62,23 +54,30 @@ void NTCThermometer::setup(unsigned int refResistance, float refVoltage, float a
 }
 
 /**
- * read analog input multiple times and return average [millivolts]
+ * read analog input multiple times and return average [digits]
  *
- * Uses analogRead() (raw 0–4095) and converts using the known reference
- * voltage. analogReadMilliVolts() returns 0 on Arduino-ESP32 v5.x when
- * the internal eFuse calibration path fails silently.
- *
- * @return average millivolts
+ * @return average digits
  */
 float NTCThermometer::analogReadMultiple()
 {
   long sum = 0;
-  for (unsigned int i = 0; i < CONSECUTIVE_SAMPLES; i++)
+  unsigned int count = 0;
+  for (unsigned int i=0; i<CONSECUTIVE_SAMPLES; i++)
   {
-    sum += analogRead(PIN::NTC);
+    int sample = analogRead(PIN::NTC);
+    if (sample >= 0)
+    {
+      sum += sample;
+      count++;
+    }
   }
-  // Convert raw counts (0–4095) to millivolts using the ADC reference voltage.
-  return ((float)sum / CONSECUTIVE_SAMPLES) * (refVoltage * 1000.0f / 4095.0f);
+
+  if (count == 0)
+  {
+    count = 1;
+  }
+
+  return (float)sum/count;
 }
 
 /**
@@ -89,10 +88,7 @@ float NTCThermometer::analogReadMultiple()
  */
 int NTCThermometer::getResistance()
 {
-  float vMv = analogReadMultiple();           // mV at ADC pin
-  if (vMv <= 0.0f) return (int)refResistance; // guard: avoid division by zero
-  float v = vMv / 1000.0f;                   // convert to V
-  return round((refVoltage / v - 1) * refResistance);
+  return round((refVoltage/(adcScale*analogReadMultiple()) - 1)*refResistance);
 }
 
 /**

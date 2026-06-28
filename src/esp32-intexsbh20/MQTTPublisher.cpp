@@ -86,12 +86,7 @@ void MQTTPublisher::publishIfDefined(const char* topic, uint8 b, uint8 undef)
 {
   if (b != undef)
   {
-    // Always retain switch states. bootSwitchSnapshot publishes with retain=true,
-    // so subsequent state changes must also use retain=true to overwrite the
-    // broker's cached value. Without this, a WiFi hiccup during a blocking command
-    // causes MQTT LWT "offline" → reconnect → HA re-fetches the stale retained
-    // value and briefly shows the wrong state (flicker).
-    mqttClient.publish(topic, b? "on" : "off", true);
+    mqttClient.publish(topic, b? "on" : "off", retainAll);
   }
 }
 
@@ -278,7 +273,7 @@ void MQTTPublisher::loop()
       uint8 b = heaterState;
       if (b != PureSpaIO::UNDEF::BOOL)
       {
-        mqttClient.publish(MQTT_TOPIC::HEATER, b? (pureSpaIO.isHeaterStandby()? "standby" : "on") : "off", true);
+        mqttClient.publish(MQTT_TOPIC::HEATER, b? (pureSpaIO.isHeaterStandby()? "standby" : "on") : "off", retainAll);
       }
 
       // HA climate state topics (mode/action) so HA knows the real heating state.
