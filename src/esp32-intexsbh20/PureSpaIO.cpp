@@ -301,6 +301,24 @@ static int displayTempToCelsiusRaw(uint32 value)
   return (celsiusValue >= 0) && (celsiusValue <= 60) ? celsiusValue : PureSpaIO::UNDEF::INT;
 }
 
+// True when a blinking display value is exactly the next expected setpoint step of
+// an in-progress temp button sequence (previous setpoint ± press direction) within
+// the recent-action window. Such a value is a legitimate new setpoint even when it
+// equals the actual water temp, so it must NOT be rejected/ignored as the panel's
+// spurious "blink the actual temp" quirk. Without this, a setpoint landing on the
+// actual water temp can never be confirmed and the multi-step change aborts.
+static bool isExpectedSetpointStep(int blinkC, int prevDesiredC, unsigned int frameNow)
+{
+  if (blinkC == PureSpaIO::UNDEF::INT || prevDesiredC == PureSpaIO::UNDEF::INT
+      || g_lastTempUiActionDirection == 0 || g_lastTempUiActionFrame == 0)
+  {
+    return false;
+  }
+  const bool recentUi =
+    diff(frameNow, g_lastTempUiActionFrame) <= spaBusFramesForWallMs(RECENT_TEMP_UI_ACTION_MS);
+  return recentUi && (blinkC == prevDesiredC + g_lastTempUiActionDirection);
+}
+
 // Blinking-display path sometimes shows the same value as actual water temperature.
 // Treating that as a setpoint update makes HA climate jump target to current temp.
 static bool shouldRejectBlinkAsSetpoint(uint32 blinkRaw, int prevDesiredC, int waterC,
@@ -308,6 +326,13 @@ static bool shouldRejectBlinkAsSetpoint(uint32 blinkRaw, int prevDesiredC, int w
 {
   const int b = displayTempToCelsiusRaw(blinkRaw);
   if (b == PureSpaIO::UNDEF::INT)
+  {
+    return false;
+  }
+
+  // A value that is exactly the expected next setpoint step is legitimate even if it
+  // equals the actual water temp — accept it before any actual-temp rejection below.
+  if (isExpectedSetpointStep(b, prevDesiredC, frameNow))
   {
     return false;
   }
@@ -1433,9 +1458,14 @@ inline void PureSpaIO::decodeDisplay()
                                                              state.frameCounter))
                     {
                       const int t = displayTempToCelsiusRaw(isrState.latestBlinkingTemp);
+                      // Ignore a blink that equals the actual temp UNLESS it is the
+                      // expected next setpoint step of an active button sequence — in
+                      // that case it is the real new setpoint and must be recorded, or
+                      // a setpoint landing on the actual temp can never be confirmed.
                       if (t != PureSpaIO::UNDEF::INT
                           && waterC != PureSpaIO::UNDEF::INT
-                          && t == waterC)
+                          && t == waterC
+                          && !isExpectedSetpointStep(t, prevDC, state.frameCounter))
                       {
                         // ignore
                       }
@@ -1579,9 +1609,12 @@ inline void PureSpaIO::decodeDisplay()
                                              state.frameCounter))
             {
               const int t = displayTempToCelsiusRaw(isrState.latestBlinkingTemp);
+              // Same guard as the blinking path: keep a blink == actual temp only if
+              // it is the expected next setpoint step of an active button sequence.
               if (t != PureSpaIO::UNDEF::INT
                   && waterC != PureSpaIO::UNDEF::INT
-                  && t == waterC)
+                  && t == waterC
+                  && !isExpectedSetpointStep(t, prevDC, state.frameCounter))
               {
                 // ignore
               }
